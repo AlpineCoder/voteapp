@@ -17,19 +17,36 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
+	"github.com/oapi-codegen/runtime"
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
 )
 
-// Pong defines model for Pong.
-type Pong struct {
-	Ping string `json:"ping"`
+// NewTask defines model for NewTask.
+type NewTask struct {
+	Title string `json:"title"`
 }
+
+// Task defines model for Task.
+type Task struct {
+	Completed *bool   `json:"completed,omitempty"`
+	Id        *string `json:"id,omitempty"`
+	Title     *string `json:"title,omitempty"`
+}
+
+// PostTasksJSONRequestBody defines body for PostTasks for application/json ContentType.
+type PostTasksJSONRequestBody = NewTask
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-
-	// (GET /ping)
-	GetPing(c *gin.Context)
+	// List all tasks
+	// (GET /tasks)
+	GetTasks(c *gin.Context)
+	// Create a new task
+	// (POST /tasks)
+	PostTasks(c *gin.Context)
+	// Delete a task
+	// (DELETE /tasks/{id})
+	DeleteTasksId(c *gin.Context, id string)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -41,8 +58,8 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(c *gin.Context)
 
-// GetPing operation middleware
-func (siw *ServerInterfaceWrapper) GetPing(c *gin.Context) {
+// GetTasks operation middleware
+func (siw *ServerInterfaceWrapper) GetTasks(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -51,7 +68,44 @@ func (siw *ServerInterfaceWrapper) GetPing(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.GetPing(c)
+	siw.Handler.GetTasks(c)
+}
+
+// PostTasks operation middleware
+func (siw *ServerInterfaceWrapper) PostTasks(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostTasks(c)
+}
+
+// DeleteTasksId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteTasksId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteTasksId(c, id)
 }
 
 // GinServerOptions provides options for the Gin server.
@@ -81,30 +135,79 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
-	router.GET(options.BaseURL+"/ping", wrapper.GetPing)
+	router.GET(options.BaseURL+"/tasks", wrapper.GetTasks)
+	router.POST(options.BaseURL+"/tasks", wrapper.PostTasks)
+	router.DELETE(options.BaseURL+"/tasks/:id", wrapper.DeleteTasksId)
 }
 
-type GetPingRequestObject struct {
+type GetTasksRequestObject struct {
 }
 
-type GetPingResponseObject interface {
-	VisitGetPingResponse(w http.ResponseWriter) error
+type GetTasksResponseObject interface {
+	VisitGetTasksResponse(w http.ResponseWriter) error
 }
 
-type GetPing200JSONResponse Pong
+type GetTasks200JSONResponse []Task
 
-func (response GetPing200JSONResponse) VisitGetPingResponse(w http.ResponseWriter) error {
+func (response GetTasks200JSONResponse) VisitGetTasksResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type PostTasksRequestObject struct {
+	Body *PostTasksJSONRequestBody
+}
+
+type PostTasksResponseObject interface {
+	VisitPostTasksResponse(w http.ResponseWriter) error
+}
+
+type PostTasks201JSONResponse Task
+
+func (response PostTasks201JSONResponse) VisitPostTasksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteTasksIdRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteTasksIdResponseObject interface {
+	VisitDeleteTasksIdResponse(w http.ResponseWriter) error
+}
+
+type DeleteTasksId204Response struct {
+}
+
+func (response DeleteTasksId204Response) VisitDeleteTasksIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteTasksId404Response struct {
+}
+
+func (response DeleteTasksId404Response) VisitDeleteTasksIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-
-	// (GET /ping)
-	GetPing(ctx context.Context, request GetPingRequestObject) (GetPingResponseObject, error)
+	// List all tasks
+	// (GET /tasks)
+	GetTasks(ctx context.Context, request GetTasksRequestObject) (GetTasksResponseObject, error)
+	// Create a new task
+	// (POST /tasks)
+	PostTasks(ctx context.Context, request PostTasksRequestObject) (PostTasksResponseObject, error)
+	// Delete a task
+	// (DELETE /tasks/{id})
+	DeleteTasksId(ctx context.Context, request DeleteTasksIdRequestObject) (DeleteTasksIdResponseObject, error)
 }
 
 type StrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -119,15 +222,15 @@ type strictHandler struct {
 	middlewares []StrictMiddlewareFunc
 }
 
-// GetPing operation middleware
-func (sh *strictHandler) GetPing(ctx *gin.Context) {
-	var request GetPingRequestObject
+// GetTasks operation middleware
+func (sh *strictHandler) GetTasks(ctx *gin.Context) {
+	var request GetTasksRequestObject
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetPing(ctx, request.(GetPingRequestObject))
+		return sh.ssi.GetTasks(ctx, request.(GetTasksRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetPing")
+		handler = middleware(handler, "GetTasks")
 	}
 
 	response, err := handler(ctx, request)
@@ -135,8 +238,68 @@ func (sh *strictHandler) GetPing(ctx *gin.Context) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetPingResponseObject); ok {
-		if err := validResponse.VisitGetPingResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(GetTasksResponseObject); ok {
+		if err := validResponse.VisitGetTasksResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostTasks operation middleware
+func (sh *strictHandler) PostTasks(ctx *gin.Context) {
+	var request PostTasksRequestObject
+
+	var body PostTasksJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostTasks(ctx, request.(PostTasksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostTasks")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PostTasksResponseObject); ok {
+		if err := validResponse.VisitPostTasksResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteTasksId operation middleware
+func (sh *strictHandler) DeleteTasksId(ctx *gin.Context, id string) {
+	var request DeleteTasksIdRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteTasksId(ctx, request.(DeleteTasksIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteTasksId")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(DeleteTasksIdResponseObject); ok {
+		if err := validResponse.VisitDeleteTasksIdResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -147,11 +310,15 @@ func (sh *strictHandler) GetPing(ctx *gin.Context) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/0RQwU4rMQz8ldW8d1x1F7jlxgn1gNQ74hCybutqNzGJqUBV/h05y8LJjjNjz8wNIS2S",
-	"IkUtcDeUcKbFt/aQ4smq5CSUlalNhdcpffpFZoKDGK6Hfom9imZD1Noj0/sHZ5rgXlba6y8qvV0oKKrB",
-	"OB6TbVTWtu+ZIy9+7ozSPR72XaF8pYweV8qFU4TD3W7cjag9klD0wnB4aKMe4vXclA6b1BOpFXPhlVPc",
-	"T3B4Ij1wE56pSIpltXc/jlZCikqx0bzIzKERh0ux61tK1v3PdITDv+EvxuEnw6EF2CxOVEJm0VW8kHbb",
-	"UfuvtX4HAAD//79Hw2OHAQAA",
+	"H4sIAAAAAAAC/6yTwW7bMAyGX0XgdjTqpO3Jt3QFhgDDmkNuRQ+sTadqbUmV6HWG4XcfKCVNYncDNuxk",
+	"gqJI/p9/DVDa1llDhgMUA4TyiVqM4Xd622J4kdB568izpnjAmhuSgH5i6ySEm65XO29L8lKTAfdO0oG9",
+	"NjsYxww8vXbaUwXF/b7Bw3uZfXymkmHM4OOBsmJDLJdPhtbYBHrv8WhtQ2ikiT6vg+Xl1Xyl7N9kTDaW",
+	"lDa1lTYVhdJrx9oaKGClgpauarVZq9p61aLBnTY7tb27vVOM4SVOSEtATK42a8jgB/mQeiwvFhcLWdU6",
+	"Mug0FHAVUxk45KfIJk+digF2xPIRcChLrCso4Cvxdj/KU3DWhIT0crFIZA2TiffQuUaX8Wb+HGT+wQ0S",
+	"aaY2XvzsqYYCPuVH3+R70+Tx7x0hoffYJ0ZTNo0OrGy9xyAVoWtb9D0U8E3OsGkOhxk4Gz6QtrHhRNtr",
+	"R4FvbNX/law/qTn4fzy3L/uOxhnN5X8be5x5Dk3yqvSE8g7OiX2JWYXK0FukFs+TM/JBV2OypzyhOcbb",
+	"mI8g11V0lseWmHyA4n4ALbPFbZCBwVb+q65gCiQ7ETd9NA8zWNfz5xLVpRUr+eXXvy0yllVtOzOFkHQo",
+	"PAAYx18BAAD//xjZ2HHcBAAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

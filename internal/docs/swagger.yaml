@@ -1,0 +1,63 @@
+definitions:
+  api.NewTask:
+    properties:
+      title:
+        type: string
+    type: object
+  api.Task:
+    properties:
+      completed:
+        type: boolean
+      id:
+        type: string
+      title:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /tasks:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.Task'
+            type: array
+      summary: List all tasks
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: New task
+        in: body
+        name: task
+        required: true
+        schema:
+          $ref: '#/definitions/api.NewTask'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/api.Task'
+      summary: Create a new task
+  /tasks/{id}:
+    delete:
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+      summary: Delete a task
+swagger: "2.0"

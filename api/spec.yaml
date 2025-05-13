@@ -1,25 +1,69 @@
-openapi: "3.0.0"
+openapi: 3.0.0
 info:
+  title: TODO API
   version: 1.0.0
-  title: Minimal ping API server
+  description: A simple API for managing TODO tasks
 paths:
-  /ping:
+  /tasks:
     get:
+      summary: List all tasks
       responses:
         '200':
-          description: pet response
+          description: A list of tasks
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Pong'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Create a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTask'
+      responses:
+        '201':
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /tasks/{id}:
+    delete:
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Task deleted
+        '404':
+          description: Task not found
 components:
   schemas:
-    # base types
-    Pong:
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "123"
+        title:
+          type: string
+          example: "Buy groceries"
+        completed:
+          type: boolean
+          example: false
+    NewTask:
       type: object
       required:
-        - ping
+        - title
       properties:
-        ping:
+        title:
           type: string
-          example: pong
+          example: "Buy groceries"

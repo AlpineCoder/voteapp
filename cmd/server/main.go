@@ -5,7 +5,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/api"
+	_ "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/docs"
 )
 
 func main() {
@@ -13,6 +17,8 @@ func main() {
 	server := api.NewServer()
 
 	r := gin.Default()
+	// Swagger UI route
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api.RegisterHandlers(r, server)
 
