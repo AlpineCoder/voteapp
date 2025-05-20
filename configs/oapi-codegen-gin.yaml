@@ -5,4 +5,4 @@ generate:
   models: true
   embedded-spec: true
   strict-server: true
-output: internal/api/zz_api.gen.go
+output: internal/api/tasks/zz_api.gen.go

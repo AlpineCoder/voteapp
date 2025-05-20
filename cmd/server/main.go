@@ -8,7 +8,8 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/api"
+	api "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/api/tasks"
+	tasks "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/api/tasks"
 	_ "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/docs"
 )
 
@@ -20,7 +21,7 @@ func main() {
 	// Swagger UI route
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	api.RegisterHandlers(r, server)
+	tasks.RegisterHandlers(r, server)
 
 	// And we serve HTTP until the world ends.
 

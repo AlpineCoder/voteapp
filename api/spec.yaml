@@ -45,6 +45,46 @@ paths:
           description: Task deleted
         '404':
           description: Task not found
+    get:
+      summary: Get a task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
+    patch:
+      summary: Update a task completion status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatch'
+      responses:
+        '200':
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          description: Task not found
 components:
   schemas:
     Task:
@@ -59,6 +99,13 @@ components:
         completed:
           type: boolean
           example: false
+    TaskPatch:
+      type: object
+      properties:
+        completed:
+          type: boolean
+          example: true
+      additionalProperties: false
     NewTask:
       type: object
       required:

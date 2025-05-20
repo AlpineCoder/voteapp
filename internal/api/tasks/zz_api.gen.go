@@ -33,8 +33,16 @@ type Task struct {
 	Title     *string `json:"title,omitempty"`
 }
 
+// TaskPatch defines model for TaskPatch.
+type TaskPatch struct {
+	Completed *bool `json:"completed,omitempty"`
+}
+
 // PostTasksJSONRequestBody defines body for PostTasks for application/json ContentType.
 type PostTasksJSONRequestBody = NewTask
+
+// PatchTasksIdJSONRequestBody defines body for PatchTasksId for application/json ContentType.
+type PatchTasksIdJSONRequestBody = TaskPatch
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -47,6 +55,12 @@ type ServerInterface interface {
 	// Delete a task
 	// (DELETE /tasks/{id})
 	DeleteTasksId(c *gin.Context, id string)
+	// Get a task by ID
+	// (GET /tasks/{id})
+	GetTasksId(c *gin.Context, id string)
+	// Update a task completion status
+	// (PATCH /tasks/{id})
+	PatchTasksId(c *gin.Context, id string)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -108,6 +122,54 @@ func (siw *ServerInterfaceWrapper) DeleteTasksId(c *gin.Context) {
 	siw.Handler.DeleteTasksId(c, id)
 }
 
+// GetTasksId operation middleware
+func (siw *ServerInterfaceWrapper) GetTasksId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetTasksId(c, id)
+}
+
+// PatchTasksId operation middleware
+func (siw *ServerInterfaceWrapper) PatchTasksId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchTasksId(c, id)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -138,6 +200,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/tasks", wrapper.GetTasks)
 	router.POST(options.BaseURL+"/tasks", wrapper.PostTasks)
 	router.DELETE(options.BaseURL+"/tasks/:id", wrapper.DeleteTasksId)
+	router.GET(options.BaseURL+"/tasks/:id", wrapper.GetTasksId)
+	router.PATCH(options.BaseURL+"/tasks/:id", wrapper.PatchTasksId)
 }
 
 type GetTasksRequestObject struct {
@@ -197,6 +261,57 @@ func (response DeleteTasksId404Response) VisitDeleteTasksIdResponse(w http.Respo
 	return nil
 }
 
+type GetTasksIdRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetTasksIdResponseObject interface {
+	VisitGetTasksIdResponse(w http.ResponseWriter) error
+}
+
+type GetTasksId200JSONResponse Task
+
+func (response GetTasksId200JSONResponse) VisitGetTasksIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTasksId404Response struct {
+}
+
+func (response GetTasksId404Response) VisitGetTasksIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PatchTasksIdRequestObject struct {
+	Id   string `json:"id"`
+	Body *PatchTasksIdJSONRequestBody
+}
+
+type PatchTasksIdResponseObject interface {
+	VisitPatchTasksIdResponse(w http.ResponseWriter) error
+}
+
+type PatchTasksId200JSONResponse Task
+
+func (response PatchTasksId200JSONResponse) VisitPatchTasksIdResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PatchTasksId404Response struct {
+}
+
+func (response PatchTasksId404Response) VisitPatchTasksIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// List all tasks
@@ -208,6 +323,12 @@ type StrictServerInterface interface {
 	// Delete a task
 	// (DELETE /tasks/{id})
 	DeleteTasksId(ctx context.Context, request DeleteTasksIdRequestObject) (DeleteTasksIdResponseObject, error)
+	// Get a task by ID
+	// (GET /tasks/{id})
+	GetTasksId(ctx context.Context, request GetTasksIdRequestObject) (GetTasksIdResponseObject, error)
+	// Update a task completion status
+	// (PATCH /tasks/{id})
+	PatchTasksId(ctx context.Context, request PatchTasksIdRequestObject) (PatchTasksIdResponseObject, error)
 }
 
 type StrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -307,18 +428,81 @@ func (sh *strictHandler) DeleteTasksId(ctx *gin.Context, id string) {
 	}
 }
 
+// GetTasksId operation middleware
+func (sh *strictHandler) GetTasksId(ctx *gin.Context, id string) {
+	var request GetTasksIdRequestObject
+
+	request.Id = id
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTasksId(ctx, request.(GetTasksIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTasksId")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetTasksIdResponseObject); ok {
+		if err := validResponse.VisitGetTasksIdResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PatchTasksId operation middleware
+func (sh *strictHandler) PatchTasksId(ctx *gin.Context, id string) {
+	var request PatchTasksIdRequestObject
+
+	request.Id = id
+
+	var body PatchTasksIdJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PatchTasksId(ctx, request.(PatchTasksIdRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PatchTasksId")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PatchTasksIdResponseObject); ok {
+		if err := validResponse.VisitPatchTasksIdResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/6yTwW7bMAyGX0XgdjTqpO3Jt3QFhgDDmkNuRQ+sTadqbUmV6HWG4XcfKCVNYncDNuxk",
-	"gqJI/p9/DVDa1llDhgMUA4TyiVqM4Xd622J4kdB568izpnjAmhuSgH5i6ySEm65XO29L8lKTAfdO0oG9",
-	"NjsYxww8vXbaUwXF/b7Bw3uZfXymkmHM4OOBsmJDLJdPhtbYBHrv8WhtQ2ikiT6vg+Xl1Xyl7N9kTDaW",
-	"lDa1lTYVhdJrx9oaKGClgpauarVZq9p61aLBnTY7tb27vVOM4SVOSEtATK42a8jgB/mQeiwvFhcLWdU6",
-	"Mug0FHAVUxk45KfIJk+digF2xPIRcChLrCso4Cvxdj/KU3DWhIT0crFIZA2TiffQuUaX8Wb+HGT+wQ0S",
-	"aaY2XvzsqYYCPuVH3+R70+Tx7x0hoffYJ0ZTNo0OrGy9xyAVoWtb9D0U8E3OsGkOhxk4Gz6QtrHhRNtr",
-	"R4FvbNX/law/qTn4fzy3L/uOxhnN5X8be5x5Dk3yqvSE8g7OiX2JWYXK0FukFs+TM/JBV2OypzyhOcbb",
-	"mI8g11V0lseWmHyA4n4ALbPFbZCBwVb+q65gCiQ7ETd9NA8zWNfz5xLVpRUr+eXXvy0yllVtOzOFkHQo",
-	"PAAYx18BAAD//xjZ2HHcBAAA",
+	"H4sIAAAAAAAC/7xVTU/cMBD9K9a0x4gNH6fcliKhlaqyB3pCHIZkshgS29iT0miV/16Nk/3MFgECTmuN",
+	"5+s9v7dZQm5rZw0ZDpAtIeT3VGM8/qLnawyPcnTeOvKsKV6w5orkQH+xdnKE86ZVC29z8pKTALdOwoG9",
+	"NgvougQ8PTXaUwHZzdDgdp1m7x4oZ+gSODxQVqyIpXhraIlVoHWPO2srQiNN9G4eHJ+cjldK3gfj4MZz",
+	"5PxeOmFRaNbWYDXfAjAs+hpM7JsDkMZzJaRNaaW4oJB77WQuZDBVQUsvNZ3PVGm9qtHgQpuFur66uFKM",
+	"4TEi68FDDE7nM0jgD/nQ9zg+So9SAWcdGXQaMjiNoQQc8n3cf9J3ypawIJYfAYeyxKyADC6Jr4dRnoKz",
+	"JvSwT9K0R2+YTKxD5yqdx8rJQ5D5KxXKSTPVsfC7pxIy+DbZ6HUyiHUSVbMhCb3Htudon5tKB1a2HGiQ",
+	"jNDUNfoWMvgpd1hVq8sEnA0HoM1t2ML21FDgc1u0b4L1EpqV77pd24g0uhGbxx82djNzlzSJq9wTilZ3",
+	"GfsRowqVoefIWrzvlTFZ6qLr5SkyH9N4EeORyFkRleWxJiYfILtZgpbZojZIwGAt76oL2Cck2QK3b9bb",
+	"EVlnY7tEdP2KhTz52X+TjGVV2sbsk9DjUDgQkLzsh6+Cmn66LqZrwG/n7JJ4IEzdtWp2Ec22+hPdc5uE",
+	"P5u6jzfx5rPwKhunX2PjxhX4bqH/jsWrdxu+X9oaFRi5kX/TrvsXAAD//7NdX7FPCAAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

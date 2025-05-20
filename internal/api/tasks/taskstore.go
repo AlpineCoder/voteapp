@@ -42,6 +42,17 @@ func (s *TaskStore) Delete(id string) {
 	delete(s.tasks, id)
 }
 
+func (s *TaskStore) Get(id string) (Task, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	task, ok := s.tasks[id]
+	if !ok {
+		return Task{}, false
+	}
+	return task, true
+}
+
 func (s *TaskStore) getSilceFromStore() []Task {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
