@@ -17,6 +17,7 @@ func FakeApiKeyAuthMiddleware(c *gin.Context) {
 	c.Next()
 }
 
+// GetBasicAuthUsers returns a map of usernames and passwords for basic authentication.
 func GetBasicAuthUsers() map[string]string {
 	// This is a hardcoded example. In a real application, you would retrieve this from a database or configuration file.
 	return map[string]string{
