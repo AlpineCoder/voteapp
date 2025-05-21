@@ -21,9 +21,13 @@ import (
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
 )
 
+const (
+	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
+)
+
 // NewTask defines model for NewTask.
 type NewTask struct {
-	Title string `json:"title"`
+	Title *string `json:"title,omitempty"`
 }
 
 // Task defines model for Task.
@@ -75,6 +79,8 @@ type MiddlewareFunc func(c *gin.Context)
 // GetTasks operation middleware
 func (siw *ServerInterfaceWrapper) GetTasks(c *gin.Context) {
 
+	c.Set(ApiKeyAuthScopes, []string{})
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -87,6 +93,8 @@ func (siw *ServerInterfaceWrapper) GetTasks(c *gin.Context) {
 
 // PostTasks operation middleware
 func (siw *ServerInterfaceWrapper) PostTasks(c *gin.Context) {
+
+	c.Set(ApiKeyAuthScopes, []string{})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -112,6 +120,8 @@ func (siw *ServerInterfaceWrapper) DeleteTasksId(c *gin.Context) {
 		return
 	}
 
+	c.Set(ApiKeyAuthScopes, []string{})
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -136,6 +146,8 @@ func (siw *ServerInterfaceWrapper) GetTasksId(c *gin.Context) {
 		return
 	}
 
+	c.Set(ApiKeyAuthScopes, []string{})
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -159,6 +171,8 @@ func (siw *ServerInterfaceWrapper) PatchTasksId(c *gin.Context) {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
 		return
 	}
+
+	c.Set(ApiKeyAuthScopes, []string{})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -493,16 +507,17 @@ func (sh *strictHandler) PatchTasksId(ctx *gin.Context, id string) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/7xVTU/cMBD9K9a0x4gNH6fcliKhlaqyB3pCHIZkshgS29iT0miV/16Nk/3MFgECTmuN",
-	"5+s9v7dZQm5rZw0ZDpAtIeT3VGM8/qLnawyPcnTeOvKsKV6w5orkQH+xdnKE86ZVC29z8pKTALdOwoG9",
-	"NgvougQ8PTXaUwHZzdDgdp1m7x4oZ+gSODxQVqyIpXhraIlVoHWPO2srQiNN9G4eHJ+cjldK3gfj4MZz",
-	"5PxeOmFRaNbWYDXfAjAs+hpM7JsDkMZzJaRNaaW4oJB77WQuZDBVQUsvNZ3PVGm9qtHgQpuFur66uFKM",
-	"4TEi68FDDE7nM0jgD/nQ9zg+So9SAWcdGXQaMjiNoQQc8n3cf9J3ypawIJYfAYeyxKyADC6Jr4dRnoKz",
-	"JvSwT9K0R2+YTKxD5yqdx8rJQ5D5KxXKSTPVsfC7pxIy+DbZ6HUyiHUSVbMhCb3Htudon5tKB1a2HGiQ",
-	"jNDUNfoWMvgpd1hVq8sEnA0HoM1t2ML21FDgc1u0b4L1EpqV77pd24g0uhGbxx82djNzlzSJq9wTilZ3",
-	"GfsRowqVoefIWrzvlTFZ6qLr5SkyH9N4EeORyFkRleWxJiYfILtZgpbZojZIwGAt76oL2Cck2QK3b9bb",
-	"EVlnY7tEdP2KhTz52X+TjGVV2sbsk9DjUDgQkLzsh6+Cmn66LqZrwG/n7JJ4IEzdtWp2Ec22+hPdc5uE",
-	"P5u6jzfx5rPwKhunX2PjxhX4bqH/jsWrdxu+X9oaFRi5kX/TrvsXAAD//7NdX7FPCAAA",
+	"H4sIAAAAAAAC/7yVTW/bMAyG/4rA7egm7sfJN3cFiqDDGmAdMKDogbWZRK0taRK9zgj83wfKTvPVFevW",
+	"9hSBski+j15GSyhs7awhwwGyJYRiQTXG5Rd6uMJwL0vnrSPPmuIGa65IFvQLaydLOG1aNfe2IC/fJMCt",
+	"k3Bgr80cuu4xYm/vqGDoEng6t3RTEVO5lZ99Q48pbq2tCI3k0NufweHR8X7x5BUbniIXC8mEZalZW4PV",
+	"dKP/GVaBkv+QtF+3SyBQ0XjN7Ve5mz5n7vQFtXnDsRltIIMFYUkeEjBYS4LvB/l0cnBB7VodxlPQSVJt",
+	"ZlbOlhQKr51ogQxyFbT0p/LpRM2sVzUanGszV1eXZ5eKMdxHWj1QiMF8OoEEfpIPfY7DUTpKBZh1ZNBp",
+	"yOB4lI5OIAGHvIj9j/tM2RLmxPIjwFCamJSQwTnx1VDKU3DWhF72UZr2RA2TiefQuUoX8eT4Lkj9lYcj",
+	"GKY6HvzoaQYZfBiv3T4erD6ORlyDR+9xYLTLptKBlZ0NGOLVNHWNvoUMPsseVtVqMwFnwxPSpjZsaPvR",
+	"UOBTW7YvkvWcmtXURgFSQHtxntit26N5+Gpl1zW3oUlcFZ5Q/L9N7FOMKlSGHiK1uN87Y7zUZdfbU0Zn",
+	"H+NZjEeQkzI6y2NNTD5Adj1MhLhtPQ+6hF0gyYa43T+Amz1YJ/vjEtX1LZZy5Sd//MhYVjPbmF0IvQ6F",
+	"A4Dk+Xl4L6npm/sifxT8cmbnxAMwdduqyVkcttUf8860Sfit0b3+EK+fmr8a4/R9xrhxJf6z0b/Fw6t7",
+	"G95EbY0KjNyEvujqpYu3s/nGXd90N93vAAAA//+FBlPArAgAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

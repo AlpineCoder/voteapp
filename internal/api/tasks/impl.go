@@ -8,31 +8,33 @@ import (
 	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/ptr"
 )
 
-// optional code omitted
-
-type Server struct {
+type TaskServer struct {
 }
 
-func NewServer() Server {
-	return Server{}
+var _ ServerInterface = TaskServer{}
+
+func NewTaskServer() TaskServer {
+	return TaskServer{}
 }
 
 // (GET /tasks)
 // @Summary List all tasks
+// @Security ApiKeyAuth
 // @Produce json
 // @Success 200 {array} Task
 // @Router /tasks [get]
-func (Server) GetTasks(ctx *gin.Context) {
+func (s TaskServer) GetTasks(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, taskStore.List())
 }
 
 // (GET /tasks/{id})
 // @Summary Get a task by ID
+// @Security ApiKeyAuth
 // @Param id path string true "Task ID"
 // @Success 200 {object} Task
 // @Failure 404
 // @Router /tasks/{id} [get]
-func (Server) GetTasksId(ctx *gin.Context, id string) {
+func (s TaskServer) GetTasksId(ctx *gin.Context, id string) {
 	if id == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
 		return
@@ -48,12 +50,13 @@ func (Server) GetTasksId(ctx *gin.Context, id string) {
 }
 
 // @Summary Create a new task
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param task body NewTask true "New task"
 // @Success 201 {object} Task
 // @Router /tasks [post]
-func (Server) PostTasks(ctx *gin.Context) {
+func (s TaskServer) PostTasks(ctx *gin.Context) {
 	var task Task
 	if err := ctx.ShouldBindJSON(&task); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -73,11 +76,12 @@ func (Server) PostTasks(ctx *gin.Context) {
 }
 
 // @Summary Delete a task
+// @Security ApiKeyAuth
 // @Param id path string true "Task ID"
 // @Success 204
 // @Failure 404
 // @Router /tasks/{id} [delete]
-func (Server) DeleteTasksId(ctx *gin.Context, id string) {
+func (s TaskServer) DeleteTasksId(ctx *gin.Context, id string) {
 	if id == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
 		return
@@ -93,12 +97,13 @@ func (Server) DeleteTasksId(ctx *gin.Context, id string) {
 }
 
 // @Summary Update a task
+// @Security ApiKeyAuth
 // @Param id path string true "Task ID"
 // @Param task body TaskPatch true "TaskPatch"
 // @Success 200 {object} Task
 // @Failure 404
 // @Router /tasks/{id} [patch]
-func (Server) PatchTasksId(ctx *gin.Context, id string) {
+func (s TaskServer) PatchTasksId(ctx *gin.Context, id string) {
 	if id == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
 		return

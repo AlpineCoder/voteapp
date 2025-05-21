@@ -1,8 +1,10 @@
-openapi: 3.0.0
+openapi: 3.0.4
 info:
   title: TODO API
   version: 1.0.0
   description: A simple API for managing TODO tasks
+security:
+  - ApiKeyAuth: []
 paths:
   /tasks:
     get:
@@ -86,6 +88,11 @@ paths:
         '404':
           description: Task not found
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
   schemas:
     Task:
       type: object
@@ -98,7 +105,7 @@ components:
           example: "Buy groceries"
         completed:
           type: boolean
-          example: false
+          example: true
     TaskPatch:
       type: object
       properties:
@@ -108,8 +115,6 @@ components:
       additionalProperties: false
     NewTask:
       type: object
-      required:
-        - title
       properties:
         title:
           type: string
