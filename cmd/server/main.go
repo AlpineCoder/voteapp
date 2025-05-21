@@ -5,28 +5,41 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 
 	api "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/api/tasks"
-	tasks "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/api/tasks"
+	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/auth"
 	_ "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/docs"
 )
 
+// @title           TODO API
+// @version         1.0
+// @description     A simple example API with auth
+// @BasePath        /
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name X-API-Key
 func main() {
 	// create a type that satisfies the `api.ServerInterface`, which contains an implementation of every operation from the generated code
-	server := api.NewServer()
+	taskServer := api.NewTaskServer()
 
-	r := gin.Default()
-	// Swagger UI route
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	router := gin.Default()
 
-	tasks.RegisterHandlers(r, server)
-
+	docs := router.Group("/docs", gin.BasicAuth(auth.GetBasicAuthUsers()))
+	docs.Use()
+	docs.GET("/*filepath", func(c *gin.Context) {
+		http.ServeFile(c.Writer, c.Request, "./swagger-ui"+c.Param("filepath"))
+	})
+	// this is how we register the handlers for all the routes for the task server and
+	// inject our custom middleware. in this case a hard coded api key
+	api.RegisterHandlersWithOptions(router, taskServer, api.GinServerOptions{
+		Middlewares: []api.MiddlewareFunc{
+			api.MiddlewareFunc(auth.FakeApiKeyAuthMiddleware),
+		},
+	})
 	// And we serve HTTP until the world ends.
 
 	s := &http.Server{
-		Handler: r,
+		Handler: router,
 		Addr:    "0.0.0.0:8080",
 	}
 

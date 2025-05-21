@@ -1,11 +1,20 @@
 {
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "A simple example API with auth",
+        "title": "TODO API",
+        "contact": {},
+        "version": "1.0"
     },
+    "basePath": "/",
     "paths": {
         "/tasks": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -23,6 +32,11 @@
                 }
             },
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "consumes": [
                     "application/json"
                 ],
@@ -53,6 +67,11 @@
         },
         "/tasks/{id}": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "summary": "Get a task by ID",
                 "parameters": [
                     {
@@ -76,6 +95,11 @@
                 }
             },
             "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "summary": "Delete a task",
                 "parameters": [
                     {
@@ -96,6 +120,11 @@
                 }
             },
             "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "summary": "Update a task",
                 "parameters": [
                     {
@@ -159,6 +188,13 @@
                     "type": "boolean"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "type": "apiKey",
+            "name": "X-API-Key",
+            "in": "header"
         }
     }
 }

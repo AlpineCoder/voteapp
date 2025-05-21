@@ -1,3 +1,4 @@
+basePath: /
 definitions:
   api.NewTask:
     properties:
@@ -20,6 +21,9 @@ definitions:
     type: object
 info:
   contact: {}
+  description: A simple example API with auth
+  title: TODO API
+  version: "1.0"
 paths:
   /tasks:
     get:
@@ -32,6 +36,8 @@ paths:
             items:
               $ref: '#/definitions/api.Task'
             type: array
+      security:
+      - ApiKeyAuth: []
       summary: List all tasks
     post:
       consumes:
@@ -50,6 +56,8 @@ paths:
           description: Created
           schema:
             $ref: '#/definitions/api.Task'
+      security:
+      - ApiKeyAuth: []
       summary: Create a new task
   /tasks/{id}:
     delete:
@@ -64,6 +72,8 @@ paths:
           description: No Content
         "404":
           description: Not Found
+      security:
+      - ApiKeyAuth: []
       summary: Delete a task
     get:
       parameters:
@@ -79,6 +89,8 @@ paths:
             $ref: '#/definitions/api.Task'
         "404":
           description: Not Found
+      security:
+      - ApiKeyAuth: []
       summary: Get a task by ID
     patch:
       parameters:
@@ -100,5 +112,12 @@ paths:
             $ref: '#/definitions/api.Task'
         "404":
           description: Not Found
+      security:
+      - ApiKeyAuth: []
       summary: Update a task
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: X-API-Key
+    type: apiKey
 swagger: "2.0"
