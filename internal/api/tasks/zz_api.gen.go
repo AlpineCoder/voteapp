@@ -507,17 +507,17 @@ func (sh *strictHandler) PatchTasksId(ctx *gin.Context, id string) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/7yVTW/bMAyG/4rA7egm7sfJN3cFiqDDGmAdMKDogbWZRK0taRK9zgj83wfKTvPVFevW",
-	"9hSBski+j15GSyhs7awhwwGyJYRiQTXG5Rd6uMJwL0vnrSPPmuIGa65IFvQLaydLOG1aNfe2IC/fJMCt",
-	"k3Bgr80cuu4xYm/vqGDoEng6t3RTEVO5lZ99Q48pbq2tCI3k0NufweHR8X7x5BUbniIXC8mEZalZW4PV",
-	"dKP/GVaBkv+QtF+3SyBQ0XjN7Ve5mz5n7vQFtXnDsRltIIMFYUkeEjBYS4LvB/l0cnBB7VodxlPQSVJt",
-	"ZlbOlhQKr51ogQxyFbT0p/LpRM2sVzUanGszV1eXZ5eKMdxHWj1QiMF8OoEEfpIPfY7DUTpKBZh1ZNBp",
-	"yOB4lI5OIAGHvIj9j/tM2RLmxPIjwFCamJSQwTnx1VDKU3DWhF72UZr2RA2TiefQuUoX8eT4Lkj9lYcj",
-	"GKY6HvzoaQYZfBiv3T4erD6ORlyDR+9xYLTLptKBlZ0NGOLVNHWNvoUMPsseVtVqMwFnwxPSpjZsaPvR",
-	"UOBTW7YvkvWcmtXURgFSQHtxntit26N5+Gpl1zW3oUlcFZ5Q/L9N7FOMKlSGHiK1uN87Y7zUZdfbU0Zn",
-	"H+NZjEeQkzI6y2NNTD5Adj1MhLhtPQ+6hF0gyYa43T+Amz1YJ/vjEtX1LZZy5Sd//MhYVjPbmF0IvQ6F",
-	"A4Dk+Xl4L6npm/sifxT8cmbnxAMwdduqyVkcttUf8860Sfit0b3+EK+fmr8a4/R9xrhxJf6z0b/Fw6t7",
-	"G95EbY0KjNyEvujqpYu3s/nGXd90N93vAAAA//+FBlPArAgAAA==",
+	"H4sIAAAAAAAC/7yVTW/bMAyG/4rA7eg26cfJN3cFiqDDGmAdMKDogbWZRK0taRK9zgj83wfKTvPhrli3",
+	"tKcIlEXyffQyWkJuK2cNGQ6QLiHkC6owLr/Q4zWGB1k6bx151hQ3WHNJsqBfWDlZwlndqLm3OXn5JgFu",
+	"nIQDe23m0LZPEXt3TzlDm8DzuaWbkpiKrfzsa3pKcWdtSWgkh97+DI6OT4bFkz02PEXOF5IJi0KztgbL",
+	"6Ub/MywDJf8haVi3TSBQXnvNzVe5my5n5vQlNVnNsRltIIUFYUEeEjBYSYLvB9l0cnBJzVodxlPQSlJt",
+	"ZlbOFhRyr51ogRQyFbT0p7LpRM2sVxUanGszV9dX51eKMTxEWh1QiMFsOoEEfpIPXY6jw/HhWIBZRwad",
+	"hhROYigBh7yI/Y+6TOkS5sTyI8BQmpgUkMIF8XVfylNw1oRO9vF43BE1TCaeQ+dKnceTo/sg9VcejmCY",
+	"qnjwo6cZpPBhtHb7qLf6KBpxDR69x57RLptSB1Z21mOIV1NXFfoGUvgse1iWq80EnA3PSJvasKHtR02B",
+	"z2zRvErWS2pWUxsFSAHtxXlit3ZA82hvZdc1t6FJXOWeUPy/TexTjCpUhh4jtbjfOWO01EXb2VNGZ4jx",
+	"PMYjyEkRneWxIiYfIL3pJ0Lctp4HXcAukGRD3O4fwO0A1ulwXKK6rsVCrvz0jx8Zy2pma7MLodOhsAeQ",
+	"vDwP7yV1/Oa+yJ4Ev57ZBXEPTN01anIeh231x7wzbRJ+a3T7H+L1U/NXYzx+nzGuXYH/bPRv8fDq3vo3",
+	"UVujAiPXoSu6euni7Wy+cTe37W37OwAA//9+mhJ6rAgAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

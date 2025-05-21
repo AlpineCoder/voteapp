@@ -5,8 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 
 	api "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/api/tasks"
 	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/auth"
@@ -25,18 +23,17 @@ func main() {
 	taskServer := api.NewTaskServer()
 
 	router := gin.Default()
-	// Swagger UI route using basic auth
-	router.GET("/swagger/*any", auth.BasicAuthMiddleware("admin", "password"), ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// Register the API routes with the Gin router using the generated code
-
-	// group := router.Group("/tasks", taskServer.GetTasks, auth.ApiKeyAuthMiddleware("key") )
-
+	docs := router.Group("/docs", gin.BasicAuth(auth.GetBasicAuthUsers()))
+	docs.Use()
+	docs.GET("/*filepath", func(c *gin.Context) {
+		http.ServeFile(c.Writer, c.Request, "./swagger-ui"+c.Param("filepath"))
+	})
 	// this is how we register the handlers for all the routes for the task server and
 	// inject our custom middleware. in this case a hard coded api key
 	api.RegisterHandlersWithOptions(router, taskServer, api.GinServerOptions{
 		Middlewares: []api.MiddlewareFunc{
-			api.MiddlewareFunc(auth.AlternateApiKeyAuthMiddleware),
+			api.MiddlewareFunc(auth.FakeApiKeyAuthMiddleware),
 		},
 	})
 	// And we serve HTTP until the world ends.
