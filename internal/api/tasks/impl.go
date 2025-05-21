@@ -18,22 +18,11 @@ func NewTaskServer() TaskServer {
 }
 
 // (GET /tasks)
-// @Summary List all tasks
-// @Security ApiKeyAuth
-// @Produce json
-// @Success 200 {array} Task
-// @Router /tasks [get]
 func (s TaskServer) GetTasks(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, taskStore.List())
 }
 
 // (GET /tasks/{id})
-// @Summary Get a task by ID
-// @Security ApiKeyAuth
-// @Param id path string true "Task ID"
-// @Success 200 {object} Task
-// @Failure 404
-// @Router /tasks/{id} [get]
 func (s TaskServer) GetTasksId(ctx *gin.Context, id string) {
 	if id == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
@@ -49,13 +38,7 @@ func (s TaskServer) GetTasksId(ctx *gin.Context, id string) {
 	ctx.JSON(http.StatusOK, task)
 }
 
-// @Summary Create a new task
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Param task body NewTask true "New task"
-// @Success 201 {object} Task
-// @Router /tasks [post]
+// PostTasks
 func (s TaskServer) PostTasks(ctx *gin.Context) {
 	var task Task
 	if err := ctx.ShouldBindJSON(&task); err != nil {
@@ -75,12 +58,6 @@ func (s TaskServer) PostTasks(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, resp)
 }
 
-// @Summary Delete a task
-// @Security ApiKeyAuth
-// @Param id path string true "Task ID"
-// @Success 204
-// @Failure 404
-// @Router /tasks/{id} [delete]
 func (s TaskServer) DeleteTasksId(ctx *gin.Context, id string) {
 	if id == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
@@ -96,13 +73,6 @@ func (s TaskServer) DeleteTasksId(ctx *gin.Context, id string) {
 	ctx.JSON(http.StatusNoContent, nil)
 }
 
-// @Summary Update a task
-// @Security ApiKeyAuth
-// @Param id path string true "Task ID"
-// @Param task body TaskPatch true "TaskPatch"
-// @Success 200 {object} Task
-// @Failure 404
-// @Router /tasks/{id} [patch]
 func (s TaskServer) PatchTasksId(ctx *gin.Context, id string) {
 	if id == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
