@@ -14,57 +14,82 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
-	"github.com/oapi-codegen/runtime"
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
 )
 
-const (
-	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
-)
-
-// NewTask defines model for NewTask.
-type NewTask struct {
-	Title *string `json:"title,omitempty"`
+// Error defines model for Error.
+type Error struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }
 
-// Task defines model for Task.
-type Task struct {
-	Completed *bool   `json:"completed,omitempty"`
-	Id        *string `json:"id,omitempty"`
-	Title     *string `json:"title,omitempty"`
+// Option defines model for Option.
+type Option struct {
+	// Id Stable option ID (hard-coded server-side).
+	Id string `json:"id"`
+
+	// Label Text shown to voters.
+	Label string `json:"label"`
 }
 
-// TaskPatch defines model for TaskPatch.
-type TaskPatch struct {
-	Completed *bool `json:"completed,omitempty"`
+// Poll defines model for Poll.
+type Poll struct {
+	Description *string `json:"description,omitempty"`
+
+	// Id Identifier of the poll (single active poll in this app).
+	Id      string   `json:"id"`
+	Options []Option `json:"options"`
+	Title   string   `json:"title"`
 }
 
-// PostTasksJSONRequestBody defines body for PostTasks for application/json ContentType.
-type PostTasksJSONRequestBody = NewTask
+// Results defines model for Results.
+type Results struct {
+	Options []struct {
+		Id    string `json:"id"`
+		Label string `json:"label"`
+		Votes int    `json:"votes"`
+	} `json:"options"`
+	PollId     string `json:"pollId"`
+	TotalVotes int    `json:"totalVotes"`
+}
 
-// PatchTasksIdJSONRequestBody defines body for PatchTasksId for application/json ContentType.
-type PatchTasksIdJSONRequestBody = TaskPatch
+// Vote defines model for Vote.
+type Vote struct {
+	// ChoiceId Must match one of the poll's option IDs.
+	ChoiceId string `json:"choiceId"`
+	PollId   string `json:"pollId"`
+
+	// VotedAt Server timestamp when this vote was last recorded.
+	VotedAt time.Time `json:"votedAt"`
+}
+
+// PostVoteJSONBody defines parameters for PostVote.
+type PostVoteJSONBody struct {
+	// ChoiceId ID of an available option.
+	ChoiceId string `json:"choiceId"`
+}
+
+// PostVoteJSONRequestBody defines body for PostVote for application/json ContentType.
+type PostVoteJSONRequestBody PostVoteJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// List all tasks
-	// (GET /tasks)
-	GetTasks(c *gin.Context)
-	// Create a new task
-	// (POST /tasks)
-	PostTasks(c *gin.Context)
-	// Delete a task
-	// (DELETE /tasks/{id})
-	DeleteTasksId(c *gin.Context, id string)
-	// Get a task by ID
-	// (GET /tasks/{id})
-	GetTasksId(c *gin.Context, id string)
-	// Update a task completion status
-	// (PATCH /tasks/{id})
-	PatchTasksId(c *gin.Context, id string)
+	// Get poll metadata and options
+	// (GET /poll)
+	GetPoll(c *gin.Context)
+	// Get aggregate results
+	// (GET /results)
+	GetResults(c *gin.Context)
+	// Get my current vote
+	// (GET /vote)
+	GetVote(c *gin.Context)
+	// Cast or change my vote (upsert)
+	// (POST /vote)
+	PostVote(c *gin.Context)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -76,10 +101,8 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(c *gin.Context)
 
-// GetTasks operation middleware
-func (siw *ServerInterfaceWrapper) GetTasks(c *gin.Context) {
-
-	c.Set(ApiKeyAuthScopes, []string{})
+// GetPoll operation middleware
+func (siw *ServerInterfaceWrapper) GetPoll(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -88,13 +111,11 @@ func (siw *ServerInterfaceWrapper) GetTasks(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.GetTasks(c)
+	siw.Handler.GetPoll(c)
 }
 
-// PostTasks operation middleware
-func (siw *ServerInterfaceWrapper) PostTasks(c *gin.Context) {
-
-	c.Set(ApiKeyAuthScopes, []string{})
+// GetResults operation middleware
+func (siw *ServerInterfaceWrapper) GetResults(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -103,24 +124,11 @@ func (siw *ServerInterfaceWrapper) PostTasks(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.PostTasks(c)
+	siw.Handler.GetResults(c)
 }
 
-// DeleteTasksId operation middleware
-func (siw *ServerInterfaceWrapper) DeleteTasksId(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	c.Set(ApiKeyAuthScopes, []string{})
+// GetVote operation middleware
+func (siw *ServerInterfaceWrapper) GetVote(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -129,24 +137,11 @@ func (siw *ServerInterfaceWrapper) DeleteTasksId(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.DeleteTasksId(c, id)
+	siw.Handler.GetVote(c)
 }
 
-// GetTasksId operation middleware
-func (siw *ServerInterfaceWrapper) GetTasksId(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	c.Set(ApiKeyAuthScopes, []string{})
+// PostVote operation middleware
+func (siw *ServerInterfaceWrapper) PostVote(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -155,33 +150,7 @@ func (siw *ServerInterfaceWrapper) GetTasksId(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.GetTasksId(c, id)
-}
-
-// PatchTasksId operation middleware
-func (siw *ServerInterfaceWrapper) PatchTasksId(c *gin.Context) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
-		return
-	}
-
-	c.Set(ApiKeyAuthScopes, []string{})
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.PatchTasksId(c, id)
+	siw.Handler.PostVote(c)
 }
 
 // GinServerOptions provides options for the Gin server.
@@ -211,138 +180,147 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
-	router.GET(options.BaseURL+"/tasks", wrapper.GetTasks)
-	router.POST(options.BaseURL+"/tasks", wrapper.PostTasks)
-	router.DELETE(options.BaseURL+"/tasks/:id", wrapper.DeleteTasksId)
-	router.GET(options.BaseURL+"/tasks/:id", wrapper.GetTasksId)
-	router.PATCH(options.BaseURL+"/tasks/:id", wrapper.PatchTasksId)
+	router.GET(options.BaseURL+"/poll", wrapper.GetPoll)
+	router.GET(options.BaseURL+"/results", wrapper.GetResults)
+	router.GET(options.BaseURL+"/vote", wrapper.GetVote)
+	router.POST(options.BaseURL+"/vote", wrapper.PostVote)
 }
 
-type GetTasksRequestObject struct {
+type GetPollRequestObject struct {
 }
 
-type GetTasksResponseObject interface {
-	VisitGetTasksResponse(w http.ResponseWriter) error
+type GetPollResponseObject interface {
+	VisitGetPollResponse(w http.ResponseWriter) error
 }
 
-type GetTasks200JSONResponse []Task
+type GetPoll200ResponseHeaders struct {
+	SetCookie string
+}
 
-func (response GetTasks200JSONResponse) VisitGetTasksResponse(w http.ResponseWriter) error {
+type GetPoll200JSONResponse struct {
+	Body    Poll
+	Headers GetPoll200ResponseHeaders
+}
+
+func (response GetPoll200JSONResponse) VisitGetPollResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Set-Cookie", fmt.Sprint(response.Headers.SetCookie))
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type GetResultsRequestObject struct {
+}
+
+type GetResultsResponseObject interface {
+	VisitGetResultsResponse(w http.ResponseWriter) error
+}
+
+type GetResults200JSONResponse Results
+
+func (response GetResults200JSONResponse) VisitGetResultsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type PostTasksRequestObject struct {
-	Body *PostTasksJSONRequestBody
+type GetVoteRequestObject struct {
 }
 
-type PostTasksResponseObject interface {
-	VisitPostTasksResponse(w http.ResponseWriter) error
+type GetVoteResponseObject interface {
+	VisitGetVoteResponse(w http.ResponseWriter) error
 }
 
-type PostTasks201JSONResponse Task
+type GetVote200ResponseHeaders struct {
+	SetCookie string
+}
 
-func (response PostTasks201JSONResponse) VisitPostTasksResponse(w http.ResponseWriter) error {
+type GetVote200JSONResponse struct {
+	Body    Vote
+	Headers GetVote200ResponseHeaders
+}
+
+func (response GetVote200JSONResponse) VisitGetVoteResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
+	w.Header().Set("Set-Cookie", fmt.Sprint(response.Headers.SetCookie))
+	w.WriteHeader(200)
 
-	return json.NewEncoder(w).Encode(response)
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
-type DeleteTasksIdRequestObject struct {
-	Id string `json:"id"`
+type GetVote204ResponseHeaders struct {
+	SetCookie string
 }
 
-type DeleteTasksIdResponseObject interface {
-	VisitDeleteTasksIdResponse(w http.ResponseWriter) error
+type GetVote204Response struct {
+	Headers GetVote204ResponseHeaders
 }
 
-type DeleteTasksId204Response struct {
-}
-
-func (response DeleteTasksId204Response) VisitDeleteTasksIdResponse(w http.ResponseWriter) error {
+func (response GetVote204Response) VisitGetVoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Set-Cookie", fmt.Sprint(response.Headers.SetCookie))
 	w.WriteHeader(204)
 	return nil
 }
 
-type DeleteTasksId404Response struct {
+type PostVoteRequestObject struct {
+	Body *PostVoteJSONRequestBody
 }
 
-func (response DeleteTasksId404Response) VisitDeleteTasksIdResponse(w http.ResponseWriter) error {
-	w.WriteHeader(404)
-	return nil
+type PostVoteResponseObject interface {
+	VisitPostVoteResponse(w http.ResponseWriter) error
 }
 
-type GetTasksIdRequestObject struct {
-	Id string `json:"id"`
+type PostVote200ResponseHeaders struct {
+	SetCookie string
 }
 
-type GetTasksIdResponseObject interface {
-	VisitGetTasksIdResponse(w http.ResponseWriter) error
+type PostVote200JSONResponse struct {
+	Body    Vote
+	Headers PostVote200ResponseHeaders
 }
 
-type GetTasksId200JSONResponse Task
-
-func (response GetTasksId200JSONResponse) VisitGetTasksIdResponse(w http.ResponseWriter) error {
+func (response PostVote200JSONResponse) VisitPostVoteResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Set-Cookie", fmt.Sprint(response.Headers.SetCookie))
 	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type PostVote400JSONResponse Error
+
+func (response PostVote400JSONResponse) VisitPostVoteResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetTasksId404Response struct {
-}
+type PostVote429JSONResponse Error
 
-func (response GetTasksId404Response) VisitGetTasksIdResponse(w http.ResponseWriter) error {
-	w.WriteHeader(404)
-	return nil
-}
-
-type PatchTasksIdRequestObject struct {
-	Id   string `json:"id"`
-	Body *PatchTasksIdJSONRequestBody
-}
-
-type PatchTasksIdResponseObject interface {
-	VisitPatchTasksIdResponse(w http.ResponseWriter) error
-}
-
-type PatchTasksId200JSONResponse Task
-
-func (response PatchTasksId200JSONResponse) VisitPatchTasksIdResponse(w http.ResponseWriter) error {
+func (response PostVote429JSONResponse) VisitPostVoteResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
+	w.WriteHeader(429)
 
 	return json.NewEncoder(w).Encode(response)
-}
-
-type PatchTasksId404Response struct {
-}
-
-func (response PatchTasksId404Response) VisitPatchTasksIdResponse(w http.ResponseWriter) error {
-	w.WriteHeader(404)
-	return nil
 }
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
-	// List all tasks
-	// (GET /tasks)
-	GetTasks(ctx context.Context, request GetTasksRequestObject) (GetTasksResponseObject, error)
-	// Create a new task
-	// (POST /tasks)
-	PostTasks(ctx context.Context, request PostTasksRequestObject) (PostTasksResponseObject, error)
-	// Delete a task
-	// (DELETE /tasks/{id})
-	DeleteTasksId(ctx context.Context, request DeleteTasksIdRequestObject) (DeleteTasksIdResponseObject, error)
-	// Get a task by ID
-	// (GET /tasks/{id})
-	GetTasksId(ctx context.Context, request GetTasksIdRequestObject) (GetTasksIdResponseObject, error)
-	// Update a task completion status
-	// (PATCH /tasks/{id})
-	PatchTasksId(ctx context.Context, request PatchTasksIdRequestObject) (PatchTasksIdResponseObject, error)
+	// Get poll metadata and options
+	// (GET /poll)
+	GetPoll(ctx context.Context, request GetPollRequestObject) (GetPollResponseObject, error)
+	// Get aggregate results
+	// (GET /results)
+	GetResults(ctx context.Context, request GetResultsRequestObject) (GetResultsResponseObject, error)
+	// Get my current vote
+	// (GET /vote)
+	GetVote(ctx context.Context, request GetVoteRequestObject) (GetVoteResponseObject, error)
+	// Cast or change my vote (upsert)
+	// (POST /vote)
+	PostVote(ctx context.Context, request PostVoteRequestObject) (PostVoteResponseObject, error)
 }
 
 type StrictHandlerFunc = strictgin.StrictGinHandlerFunc
@@ -357,15 +335,15 @@ type strictHandler struct {
 	middlewares []StrictMiddlewareFunc
 }
 
-// GetTasks operation middleware
-func (sh *strictHandler) GetTasks(ctx *gin.Context) {
-	var request GetTasksRequestObject
+// GetPoll operation middleware
+func (sh *strictHandler) GetPoll(ctx *gin.Context) {
+	var request GetPollRequestObject
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetTasks(ctx, request.(GetTasksRequestObject))
+		return sh.ssi.GetPoll(ctx, request.(GetPollRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetTasks")
+		handler = middleware(handler, "GetPoll")
 	}
 
 	response, err := handler(ctx, request)
@@ -373,8 +351,8 @@ func (sh *strictHandler) GetTasks(ctx *gin.Context) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetTasksResponseObject); ok {
-		if err := validResponse.VisitGetTasksResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(GetPollResponseObject); ok {
+		if err := validResponse.VisitGetPollResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -382,11 +360,61 @@ func (sh *strictHandler) GetTasks(ctx *gin.Context) {
 	}
 }
 
-// PostTasks operation middleware
-func (sh *strictHandler) PostTasks(ctx *gin.Context) {
-	var request PostTasksRequestObject
+// GetResults operation middleware
+func (sh *strictHandler) GetResults(ctx *gin.Context) {
+	var request GetResultsRequestObject
 
-	var body PostTasksJSONRequestBody
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetResults(ctx, request.(GetResultsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetResults")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetResultsResponseObject); ok {
+		if err := validResponse.VisitGetResultsResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetVote operation middleware
+func (sh *strictHandler) GetVote(ctx *gin.Context) {
+	var request GetVoteRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVote(ctx, request.(GetVoteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVote")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetVoteResponseObject); ok {
+		if err := validResponse.VisitGetVoteResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostVote operation middleware
+func (sh *strictHandler) PostVote(ctx *gin.Context) {
+	var request PostVoteRequestObject
+
+	var body PostVoteJSONRequestBody
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.Status(http.StatusBadRequest)
 		ctx.Error(err)
@@ -395,10 +423,10 @@ func (sh *strictHandler) PostTasks(ctx *gin.Context) {
 	request.Body = &body
 
 	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PostTasks(ctx, request.(PostTasksRequestObject))
+		return sh.ssi.PostVote(ctx, request.(PostVoteRequestObject))
 	}
 	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PostTasks")
+		handler = middleware(handler, "PostVote")
 	}
 
 	response, err := handler(ctx, request)
@@ -406,97 +434,8 @@ func (sh *strictHandler) PostTasks(ctx *gin.Context) {
 	if err != nil {
 		ctx.Error(err)
 		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(PostTasksResponseObject); ok {
-		if err := validResponse.VisitPostTasksResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// DeleteTasksId operation middleware
-func (sh *strictHandler) DeleteTasksId(ctx *gin.Context, id string) {
-	var request DeleteTasksIdRequestObject
-
-	request.Id = id
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.DeleteTasksId(ctx, request.(DeleteTasksIdRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "DeleteTasksId")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(DeleteTasksIdResponseObject); ok {
-		if err := validResponse.VisitDeleteTasksIdResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetTasksId operation middleware
-func (sh *strictHandler) GetTasksId(ctx *gin.Context, id string) {
-	var request GetTasksIdRequestObject
-
-	request.Id = id
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.GetTasksId(ctx, request.(GetTasksIdRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetTasksId")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(GetTasksIdResponseObject); ok {
-		if err := validResponse.VisitGetTasksIdResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// PatchTasksId operation middleware
-func (sh *strictHandler) PatchTasksId(ctx *gin.Context, id string) {
-	var request PatchTasksIdRequestObject
-
-	request.Id = id
-
-	var body PatchTasksIdJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.PatchTasksId(ctx, request.(PatchTasksIdRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "PatchTasksId")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(PatchTasksIdResponseObject); ok {
-		if err := validResponse.VisitPatchTasksIdResponse(ctx.Writer); err != nil {
+	} else if validResponse, ok := response.(PostVoteResponseObject); ok {
+		if err := validResponse.VisitPostVoteResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -507,17 +446,30 @@ func (sh *strictHandler) PatchTasksId(ctx *gin.Context, id string) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

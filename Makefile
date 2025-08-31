@@ -15,5 +15,6 @@ gen:
 	oapi-codegen -config configs/oapi-codegen-gin.yaml api/spec.yaml
 
 swag:
+	cp api/spec.yaml docs/openapi.yaml
 	cp api/spec.yaml swagger-ui/openapi.yaml
 	@echo "Swagger docs generated at: http://localhost:8080/docs/index.html"

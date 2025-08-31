@@ -9,6 +9,7 @@ import (
 	api "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/api/tasks"
 	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/auth"
 	_ "gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/docs"
+	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/middleware"
 )
 
 // @title           TODO API
@@ -20,24 +21,27 @@ import (
 // @name X-API-Key
 func main() {
 	// create a type that satisfies the `api.ServerInterface`, which contains an implementation of every operation from the generated code
-	taskServer := api.NewTaskServer()
+	pollServer := api.NewPollServer()
 
 	router := gin.Default()
+	router.Use(middleware.EnsureVoterID())
 
 	docs := router.Group("/docs", gin.BasicAuth(auth.GetBasicAuthUsers()))
+	ui := router.Group("/ui")
+
 	docs.Use()
+	ui.Use()
 	docs.GET("/*filepath", func(c *gin.Context) {
 		http.ServeFile(c.Writer, c.Request, "./swagger-ui"+c.Param("filepath"))
 	})
-	// this is how we register the handlers for all the routes for the task server and
-	// inject our custom middleware. in this case a hard coded api key
-	api.RegisterHandlersWithOptions(router, taskServer, api.GinServerOptions{
-		Middlewares: []api.MiddlewareFunc{
-			api.MiddlewareFunc(auth.FakeApiKeyAuthMiddleware),
-		},
-	})
-	// And we serve HTTP until the world ends.
 
+	ui.GET("/*filepath", func(c *gin.Context) {
+		http.ServeFile(c.Writer, c.Request, "./ui/index.html")
+	})
+
+	api.RegisterHandlers(router, pollServer)
+
+	// And we serve HTTP until the world ends.
 	s := &http.Server{
 		Handler: router,
 		Addr:    "0.0.0.0:8080",
