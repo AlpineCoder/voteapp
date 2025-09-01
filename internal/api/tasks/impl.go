@@ -37,7 +37,7 @@ func (s PollServer) GetVote(ctx *gin.Context) {
 
 	fmt.Println("voter_id:", ctx.GetString("voter_id"))
 
-	choiceId, err := s.polls.GetVote("1", ctx.GetString("voter_id"))
+	choiceId, err := s.polls.GetVote(model.PollID, ctx.GetString("voter_id"))
 	if err != nil && err == repository.ErrNoRows {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not retrieve vote", "details": err.Error()})
 		return
@@ -66,7 +66,7 @@ func (s PollServer) PostVote(ctx *gin.Context) {
 		return
 	}
 
-	if err := s.polls.UpsertVote("1", ctx.GetString("voter_id"), vote.ChoiceID); err != nil {
+	if err := s.polls.UpsertVote(model.PollID, ctx.GetString("voter_id"), vote.ChoiceID); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not record vote", "details": err.Error()})
 		return
 	}

@@ -1,5 +1,9 @@
 package model
 
+const (
+	PollID = "bday-2025"
+)
+
 type Poll struct {
 	ID          string            `json:"id"`
 	Title       string            `json:"title"`
