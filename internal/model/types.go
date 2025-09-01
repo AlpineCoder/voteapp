@@ -10,9 +10,7 @@ type Poll struct {
 type PollOptions map[string]string
 
 type Vote struct {
-	PollID   string `json:"poll_id"`
-	ChoiceID string `json:"choice_id"`
-	VotedAt  string `json:"voted_at"`
+	ChoiceID string `json:"choiceId"`
 }
 
 type Results struct {

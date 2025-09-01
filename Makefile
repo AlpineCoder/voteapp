@@ -3,13 +3,13 @@ all: gen swag test build
 build:
 	go vet ./...
 	go fmt ./...
-	go build -o bin/server ./cmd/server/main.go
+	go build -o ./cmd/server/server ./cmd/server/main.go
 
 test:
 	go test -v ./...
 
 run: gen swag test build
-	./bin/server
+	cd cmd/server;./server
 
 gen:
 	oapi-codegen -config configs/oapi-codegen-gin.yaml api/spec.yaml

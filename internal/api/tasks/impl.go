@@ -6,15 +6,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/model"
+	"gitlab.ixcloud.ch/ZimmermannRoger/gin-todo/internal/repository"
 )
 
 type PollServer struct {
+	polls *repository.Polls
 }
 
 var _ ServerInterface = PollServer{}
 
 func NewPollServer() PollServer {
-	return PollServer{}
+	p, _ := repository.NewPolls("../../data/poll.sqlite")
+	return PollServer{
+		polls: p,
+	}
 }
 
 // (GET /poll)
@@ -32,23 +37,41 @@ func (s PollServer) GetVote(ctx *gin.Context) {
 
 	fmt.Println("voter_id:", ctx.GetString("voter_id"))
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Vote endpoint"})
+	choiceId, err := s.polls.GetVote("1", ctx.GetString("voter_id"))
+	if err != nil && err == repository.ErrNoRows {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not retrieve vote", "details": err.Error()})
+		return
+	}
+	if choiceId == "" {
+		ctx.JSON(http.StatusNotFound, gin.H{"message": "No vote found for this voter"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"choiceId": choiceId})
 }
 
 // (POST /vote)
 func (s PollServer) PostVote(ctx *gin.Context) {
-	var vote struct {
-		Option string `json:"option" binding:"required"`
-	}
+	var vote model.Vote
 
 	if err := ctx.ShouldBindJSON(&vote); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Here you would typically process the vote, e.g., store it in a database
+	// check if choice is valid
+	if _, ok := model.DefinedPollOptions[vote.ChoiceID]; !ok {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid choice", "details": "choice must be one of the defined options",
+			"choices": model.DefinedPollOptions})
+		return
+	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Vote received", "option": vote.Option})
+	if err := s.polls.UpsertVote("1", ctx.GetString("voter_id"), vote.ChoiceID); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not record vote", "details": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Vote received", "option": vote.ChoiceID})
 }
 
 // (GET /results)
