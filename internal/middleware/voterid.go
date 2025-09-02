@@ -32,8 +32,8 @@ func EnsureVoterID() gin.HandlerFunc {
 				int(cookieAge.Seconds()), // Max-Age in seconds
 				cookiePath,
 				cookieDomain,
-				useSecureCookies, // Secure
-				true,             // HttpOnly
+				false, // Secure
+				true,  // HttpOnly
 			)
 		}
 		// Make it easy for handlers to access

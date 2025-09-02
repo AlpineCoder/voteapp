@@ -16,7 +16,7 @@ type PollServer struct {
 var _ ServerInterface = PollServer{}
 
 func NewPollServer() PollServer {
-	p, _ := repository.NewPolls("../../data/poll.sqlite")
+	p, _ := repository.NewPolls("./data/poll.sqlite")
 	return PollServer{
 		polls: p,
 	}
@@ -24,7 +24,7 @@ func NewPollServer() PollServer {
 
 // (GET /poll)
 func (s PollServer) GetPoll(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, model.DefinedPollOptions)
+	ctx.JSON(http.StatusOK, model.ConcretePoll)
 }
 
 // (GET /vote)
@@ -43,7 +43,7 @@ func (s PollServer) GetVote(ctx *gin.Context) {
 		return
 	}
 	if choiceId == "" {
-		ctx.JSON(http.StatusNotFound, gin.H{"message": "No vote found for this voter"})
+		ctx.JSON(http.StatusOK, gin.H{"message": "No vote found for this voter"})
 		return
 	}
 
@@ -76,15 +76,35 @@ func (s PollServer) PostVote(ctx *gin.Context) {
 
 // (GET /results)
 func (s PollServer) GetResults(ctx *gin.Context) {
-	// Here you would typically fetch the poll results from a database
-	results, err := s.polls.GetResults(model.PollID)
+	// Here you would typically fetch the poll rawResults from a database
+	rawResults, err := s.polls.GetResults(model.PollID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not retrieve results", "details": err.Error()})
 		return
 	}
-	if results == nil {
+	if rawResults == nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not retrieve results"})
 		return
+	}
+
+	totalVotes := 0
+	for _, count := range rawResults {
+		totalVotes += count
+	}
+
+	var options []model.OptionCounts = make([]model.OptionCounts, 0, len(model.DefinedPollOptions))
+	for optionID, count := range rawResults {
+		var option model.OptionCounts
+		option.ID = optionID
+		option.Label = model.DefinedPollOptions[optionID]
+		option.Votes = count
+		options = append(options, option)
+	}
+
+	results := &model.Results{
+		PollID:     model.PollID,
+		TotalVotes: totalVotes,
+		Options:    options,
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"results": results})

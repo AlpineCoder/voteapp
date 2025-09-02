@@ -18,9 +18,9 @@ type Vote struct {
 }
 
 type Results struct {
-	PollID     string       `json:"poll_id"`
-	TotalVotes int          `json:"total_votes"`
-	Options    OptionCounts `json:"options"`
+	PollID     string         `json:"poll_id"`
+	TotalVotes int            `json:"total_votes"`
+	Options    []OptionCounts `json:"options"`
 }
 
 type OptionCounts struct {
@@ -34,4 +34,11 @@ var DefinedPollOptions = PollOptions{
 	"optionA": "Punk",
 	"optionB": "Happy Hardcore",
 	"optionC": "Schlager",
+}
+
+var ConcretePoll = Poll{
+	ID:          PollID,
+	Title:       "What music should we play at the party?",
+	Description: "Choose your favorite music genre for the upcoming party.",
+	Options:     DefinedPollOptions,
 }

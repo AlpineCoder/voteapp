@@ -9,7 +9,7 @@ test:
 	go test -v ./...
 
 run: gen swag test build
-	cd cmd/server;./server
+	./cmd/server/server
 
 gen:
 	oapi-codegen -config configs/oapi-codegen-gin.yaml api/spec.yaml

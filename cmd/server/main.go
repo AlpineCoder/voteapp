@@ -28,12 +28,12 @@ func main() {
 
 	docs := router.Group("/docs", gin.BasicAuth(auth.GetBasicAuthUsers()))
 	ui := router.Group("/ui")
-
 	docs.Use()
 	ui.Use()
-	docs.GET("/*filepath", func(c *gin.Context) {
-		http.ServeFile(c.Writer, c.Request, "./swagger-ui"+c.Param("filepath"))
-	})
+
+	// docs.GET("/*filepath", func(c *gin.Context) {
+	// 	http.ServeFile(c.Writer, c.Request, "./swagger-ui"+c.Param("filepath"))
+	// })
 
 	ui.GET("/*filepath", func(c *gin.Context) {
 		http.ServeFile(c.Writer, c.Request, "./ui/index.html")

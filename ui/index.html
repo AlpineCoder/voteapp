@@ -179,14 +179,15 @@
       try{
         const res = await api('/results');
         if(!res.ok) throw new Error('Failed to load results ('+res.status+')');
-        const data = await res.json();
-        const max = (data.options||[]).reduce((m,o)=>Math.max(m, o.votes||0), 0) || 0;
-        totalVotesEl.textContent = 'Total votes: ' + (data.totalVotes || 0);
-        if(!data.options || !data.options.length){
+        const results = await res.json();
+        console.log(results.results.total_votes);
+        const max = (results.results.options||[]).reduce((m,o)=>Math.max(m, o.total_votes||0), 0) || 0;
+        totalVotesEl.textContent = 'Total votes: ' + (results.results.total_votes || 0);
+        if(!results.results.options || !results.results.options.length){
           resultsEl.innerHTML = '<div class="small">No votes yet. Be the first!</div>';
           return;
         }
-        resultsEl.innerHTML = data.options.map(o => {
+        resultsEl.innerHTML = results.results.options.map(o => {
           const pct = max ? Math.round((o.votes / max) * 100) : 0;
           return `
             <div class="toprow"><span>${escapeHtml(o.label)}</span><span class="small">${o.votes}</span></div>

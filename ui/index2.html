@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Todo App</title>
+  <style>
+    body { font-family: sans-serif; max-width: 500px; margin: 2rem auto; }
+    input[type="text"] { width: 100%; padding: 0.5rem; }
+    li { display: flex; justify-content: space-between; margin: 0.5rem 0; }
+  </style>
+</head>
+<body>
+  <h1>TODOs</h1>
+  <ul id="task-list"></ul>
+  <input type="text" id="new-task" placeholder="New task..." />
+  <button onclick="addTask()">Add</button>
+
+  <script>
+    const apiKey = "key";
+    const baseUrl = "http://192.168.75.9:8080";
+
+    async function loadTasks() {
+      const res = await fetch(`${baseUrl}/tasks`, {
+        headers: { "X-API-Key": apiKey },
+      });
+      const tasks = await res.json();
+
+      const list = document.getElementById("task-list");
+      list.innerHTML = "";
+      var completed;
+      for (const task of tasks) {
+        const li = document.createElement("li");
+        if (task.completed) {
+          completed = "✅";
+        } else {
+          completed = "❌";
+        }   
+        li.innerHTML = `
+          <span>${task.title} status: <button onclick="toggleTask('${task.id}')">${completed}</button></span>
+          <button onclick="deleteTask('${task.id}')">❌</button>
+        `;
+        list.appendChild(li);
+      }
+    }
+
+    async function addTask() {
+      const title = document.getElementById("new-task").value;
+      if (!title.trim()) return;
+
+      await fetch(`${baseUrl}/tasks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": apiKey,
+        },
+        body: JSON.stringify({ title }),
+      });
+      document.getElementById("new-task").value = "";
+      loadTasks();
+    }
+
+    async function toggleTask(id) {
+      const res = await fetch(`${baseUrl}/tasks/${id}`, {
+        headers: { "X-API-Key": apiKey },
+      });
+      const task = await res.json();
+
+      await fetch(`${baseUrl}/tasks/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": apiKey,
+        },
+        body: JSON.stringify({ completed: !task.completed }),
+      });
+      loadTasks();
+    }
+
+    async function deleteTask(id) {
+      await fetch(`${baseUrl}/tasks/${id}`, {
+        method: "DELETE",
+        headers: { "X-API-Key": apiKey },
+      });
+      loadTasks();
+    }
+
+    loadTasks();
+  </script>
+</body>
+</html>
