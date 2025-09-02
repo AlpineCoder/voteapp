@@ -77,10 +77,14 @@ func (s PollServer) PostVote(ctx *gin.Context) {
 // (GET /results)
 func (s PollServer) GetResults(ctx *gin.Context) {
 	// Here you would typically fetch the poll results from a database
-	results := map[string]int{
-		"optionA": 10,
-		"optionB": 5,
-		"optionC": 3,
+	results, err := s.polls.GetResults(model.PollID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not retrieve results", "details": err.Error()})
+		return
+	}
+	if results == nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "could not retrieve results"})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"results": results})
