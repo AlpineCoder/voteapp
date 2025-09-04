@@ -1,121 +1,203 @@
 openapi: 3.0.0
 info:
-  title: TODO API
+  title: Birthday Poll API
   version: 1.0.0
-  description: A simple API for managing TODO tasks
-security:
-  - ApiKeyAuth: []
+  description: |
+    Minimal hobby voting API for a one-time poll.
+    - Server sets a long-lived `voter_id` cookie on first request.
+    - One vote per voter; POST /vote is an upsert.
+    - Options are hard-coded in the backend.
 paths:
-  /tasks:
+  /poll:
     get:
-      summary: List all tasks
+      summary: Get poll metadata and options
+      description: Returns the poll title, description, and available options. Options are hard-coded server-side.
       responses:
         '200':
-          description: A list of tasks
+          description: Poll and options
+          headers:
+            Set-Cookie:
+              description: May set `voter_id` if the client does not have one yet.
+              schema: { type: string }
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Task'
-    post:
-      summary: Create a new task
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewTask'
+                $ref: '#/components/schemas/Poll'
+              examples:
+                default:
+                  value:
+                    id: "bday-2025"
+                    title: "What should we play next?"
+                    description: "Pick one option. You can change your mind later."
+                    options:
+                      - { id: "karaoke", label: "Karaoke" }
+                      - { id: "dance", label: "Dance-Off" }
+                      - { id: "quiz", label: "Pub Quiz" }
+  /vote:
+    get:
+      summary: Get my current vote
+      description: Returns the caller's current vote (identified by `voter_id` cookie), if any.
       responses:
-        '201':
-          description: Task created
+        '200':
+          description: Current vote found
+          headers:
+            Set-Cookie:
+              description: May set `voter_id` if missing (no vote yet).
+              schema: { type: string }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Task'
-  /tasks/{id}:
-    delete:
-      summary: Delete a task
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
+                $ref: '#/components/schemas/Vote'
+              examples:
+                default:
+                  value:
+                    pollId: "bday-2025"
+                    choiceId: "quiz"
+                    votedAt: "2025-08-31T18:22:11Z"
         '204':
-          description: Task deleted
-        '404':
-          description: Task not found
-    get:
-      summary: Get a task by ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: A task
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-        '404':
-          description: Task not found
-    patch:
-      summary: Update a task completion status
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
+          description: No vote yet for this voter
+          headers:
+            Set-Cookie:
+              description: May set `voter_id` if missing.
+              schema: { type: string }
+    post:
+      summary: Cast or change my vote (upsert)
+      description: |
+        Creates or updates the caller's vote for the current poll, keyed by `voter_id` cookie.
+        If the caller has already voted, this replaces their previous choice.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskPatch'
+              type: object
+              additionalProperties: false
+              required: [choiceId]
+              properties:
+                choiceId:
+                  type: string
+                  description: ID of an available option.
+            examples:
+              default:
+                value: { choiceId: "dance" }
       responses:
         '200':
-          description: Task updated
+          description: Vote recorded (created or updated)
+          headers:
+            Set-Cookie:
+              description: Sets `voter_id` if it was missing.
+              schema: { type: string }
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Task'
-        '404':
-          description: Task not found
+                $ref: '#/components/schemas/Vote'
+        '400':
+          description: Invalid choiceId (not one of the hard-coded options)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                invalidChoice:
+                  value: { code: "invalid_choice", message: "choiceId is not a valid option" }
+        '429':
+          description: Too many attempts (simple IP throttle)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /results:
+    get:
+      summary: Get aggregate results
+      description: Returns total votes per option. No per-voter details are exposed.
+      responses:
+        '200':
+          description: Aggregate counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Results'
+              examples:
+                default:
+                  value:
+                    pollId: "bday-2025"
+                    totalVotes: 42
+                    options:
+                      - { id: "karaoke", label: "Karaoke", votes: 10 }
+                      - { id: "dance", label: "Dance-Off", votes: 19 }
+                      - { id: "quiz", label: "Pub Quiz", votes: 13 }
 components:
-  securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: X-API-Key
   schemas:
-    Task:
+    Poll:
       type: object
+      additionalProperties: false
+      required: [id, title, options]
       properties:
         id:
           type: string
-          example: "123"
+          description: Identifier of the poll (single active poll in this app).
         title:
           type: string
-          example: "Buy groceries"
-        completed:
-          type: boolean
-          example: true
-    TaskPatch:
+        description:
+          type: string
+        options:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Option'
+    Option:
       type: object
-      properties:
-        completed:
-          type: boolean
-          example: true
       additionalProperties: false
-    NewTask:
-      type: object
+      required: [id, label]
       properties:
-        title:
+        id:
           type: string
-          example: "Buy groceries"
+          description: Stable option ID (hard-coded server-side).
+        label:
+          type: string
+          description: Text shown to voters.
+    Vote:
+      type: object
+      additionalProperties: false
+      required: [pollId, choiceId, votedAt]
+      properties:
+        pollId:
+          type: string
+        choiceId:
+          type: string
+          description: Must match one of the poll's option IDs.
+        votedAt:
+          type: string
+          format: date-time
+          description: Server timestamp when this vote was last recorded.
+    Results:
+      type: object
+      additionalProperties: false
+      required: [pollId, totalVotes, options]
+      properties:
+        pollId:
+          type: string
+        totalVotes:
+          type: integer
+          minimum: 0
+        options:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, label, votes]
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+              votes:
+                type: integer
+                minimum: 0
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string

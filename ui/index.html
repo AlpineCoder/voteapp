@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Birthday Poll</title>
+  <style>
+    :root { --bg:#f7f7fb; --fg:#0f172a; --muted:#64748b; --card:#ffffff; --ring:#e2e8f0; --accent:#111827; --ok:#065f46; --okbg:#ecfdf5; --err:#7f1d1d; --errbg:#fef2f2; }
+    html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;color:var(--fg);background:var(--bg)}
+    .wrap{max-width:640px;margin:0 auto;padding:24px}
+    .card{background:var(--card);border:1px solid var(--ring);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04);padding:20px}
+    h1{margin:.2rem 0 0;font-size:1.4rem}
+    p.desc{margin:.3rem 0 1rem;color:var(--muted)}
+    .opt{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border:1px solid var(--ring);border-radius:12px;cursor:pointer}
+    .opt + .opt{margin-top:.5rem}
+    .opt.selected{border-color:var(--accent);background:#f8fafc}
+    .row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:12px}
+    button{appearance:none;border:0;border-radius:12px;padding:.55rem .9rem;cursor:pointer;font-weight:600}
+    button.primary{background:var(--accent);color:#fff}
+    button.ghost{background:#fff;border:1px solid var(--ring);color:var(--fg)}
+    button[disabled]{opacity:.5;cursor:not-allowed}
+    .msg{margin-top:10px;font-size:.92rem;padding:.5rem .6rem;border-radius:10px}
+    .ok{background:var(--okbg);color:var(--ok)}
+    .err{background:var(--errbg);color:var(--err)}
+    .results{margin-top:14px}
+    .bar{height:10px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+    .bar > span{display:block;height:100%;background:var(--accent)}
+    .toprow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+    .small{font-size:.8rem;color:var(--muted)}
+    footer{margin-top:18px;text-align:center;color:var(--muted);font-size:.78rem}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1 id="title">Loading…</h1>
+      <p id="desc" class="desc"></p>
+      <div id="options"></div>
+      <div id="messages"></div>
+      <div class="row">
+        <button id="saveBtn" class="primary" disabled>Save my vote</button>
+        <button id="toggleResults" class="ghost">Show results</button>
+      </div>
+    </div>
+
+    <div id="resultsCard" class="card" style="display:none;margin-top:12px">
+      <div class="toprow">
+        <strong>Live results</strong>
+        <span id="totalVotes" class="small"></span>
+      </div>
+      <div id="results" class="results"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="refreshBtn" class="ghost">Refresh</button>
+      </div>
+    </div>
+
+    <footer>Cookies required (voter_id). Change your vote anytime.</footer>
+  </div>
+
+  <script>
+  (function(){
+    const API_BASE = ""; // e.g. "" or "/api"
+
+    const el = (id) => document.getElementById(id);
+    const titleEl = el('title');
+    const descEl = el('desc');
+    const optsEl = el('options');
+    const msgEl = el('messages');
+    const saveBtn = el('saveBtn');
+    const toggleResults = el('toggleResults');
+    const resultsCard = el('resultsCard');
+    const resultsEl = el('results');
+    const totalVotesEl = el('totalVotes');
+    const refreshBtn = el('refreshBtn');
+
+    let poll = null;
+    let selected = '';
+
+    function showMsg(text, kind){
+      msgEl.innerHTML = text ? `<div class="msg ${kind}">${escapeHtml(text)}</div>` : '';
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
+    }
+
+    function api(path, init){
+      return fetch(API_BASE + path, Object.assign({
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      }, init));
+    }
+
+    // Normalize options to an array of {id,label} even if server returns an object map
+    function normalizeOptions(opts){
+        if (!opts) return [];
+        if (Array.isArray(opts)) return opts; // already [{id,label}]
+        if (typeof opts === 'object') {
+            return Object.entries(opts).map(([id, label]) => ({ id, label: String(label) }));
+        }
+        return [];
+    }
+
+    function renderOptions(){
+      if(!poll || !poll.options || !poll.options.length){
+        optsEl.innerHTML = '<p class="small">No options available.</p>';
+        saveBtn.disabled = true;
+        return;
+      }
+      optsEl.innerHTML = '';
+      poll.options.forEach(opt => {
+        const label = document.createElement('label');
+        label.className = 'opt' + (selected === opt.id ? ' selected' : '');
+        label.innerHTML = `
+          <input type="radio" name="choice" value="${escapeHtml(opt.id)}" ${selected===opt.id?'checked':''} style="width:16px;height:16px" />
+          <span>${escapeHtml(opt.label)}</span>
+        `;
+        label.addEventListener('change', () => {
+          selected = opt.id;
+          renderOptions();
+          saveBtn.disabled = !selected;
+        });
+        optsEl.appendChild(label);
+      });
+      saveBtn.disabled = !selected;
+    }
+
+    async function loadPoll(){
+        showMsg('', '');
+        try{
+            const res = await api('/poll');
+            if(!res.ok) throw new Error('/poll ' + res.status);
+            poll = await res.json();
+            // ensure options is an array of {id,label}
+            poll.options = normalizeOptions(poll.options);
+            titleEl.textContent = poll.title || 'Poll';
+            descEl.textContent = poll.description || '';
+            await preloadVote();
+            renderOptions();
+            }catch(e){
+            titleEl.textContent = 'Something went wrong';
+            descEl.textContent = '';
+            showMsg(e.message || 'Failed to load poll', 'err');
+        }
+    }
+
+    async function preloadVote(){
+      try{
+        const res = await api('/vote');
+        if(res.status === 204) return; // no vote yet
+        if(!res.ok) return; // ignore errors for UX
+        const v = await res.json();
+        if(v && v.choiceId) selected = v.choiceId;
+      }catch(_e){}
+    }
+
+    async function submitVote(){
+      if(!selected) return;
+      saveBtn.disabled = true;
+      showMsg('', '');
+      try{
+        const res = await api('/vote', { method:'POST', body: JSON.stringify({ choiceId: selected })});
+        if(!res.ok){
+          let body = null; try{ body = await res.json(); }catch(_e){}
+          throw new Error((body && body.message) || ('Vote failed ('+res.status+')'));
+        }
+        const ok = await res.json();
+        showMsg('Vote saved' + (ok && ok.votedAt ? (' at ' + new Date(ok.votedAt).toLocaleString()) : '') + '.', 'ok');
+        if(resultsCard.style.display !== 'none') await loadResults();
+      }catch(e){
+        showMsg(e.message || 'Could not submit vote', 'err');
+      }finally{
+        saveBtn.disabled = !selected;
+      }
+    }
+
+    async function loadResults(){
+      resultsEl.innerHTML = '<div class="small">Loading…</div>';
+      try{
+        const res = await api('/results');
+        if(!res.ok) throw new Error('Failed to load results ('+res.status+')');
+        const results = await res.json();
+        console.log(results.results.total_votes);
+        const max = (results.results.options||[]).reduce((m,o)=>Math.max(m, o.total_votes||0), 0) || 0;
+        totalVotesEl.textContent = 'Total votes: ' + (results.results.total_votes || 0);
+        if(!results.results.options || !results.results.options.length){
+          resultsEl.innerHTML = '<div class="small">No votes yet. Be the first!</div>';
+          return;
+        }
+        resultsEl.innerHTML = results.results.options.map(o => {
+          const pct = max ? Math.round((o.votes / max) * 100) : 0;
+          return `
+            <div class="toprow"><span>${escapeHtml(o.label)}</span><span class="small">${o.votes}</span></div>
+            <div class="bar"><span style="width:${pct}%;"></span></div>
+          `;
+        }).join('');
+      }catch(e){
+        resultsEl.innerHTML = '<div class="msg err">'+escapeHtml(e.message || 'Failed to load results')+'</div>';
+      }
+    }
+
+    saveBtn.addEventListener('click', submitVote);
+
+    toggleResults.addEventListener('click', async () => {
+      const shown = resultsCard.style.display !== 'none';
+      if(shown){
+        resultsCard.style.display = 'none';
+        toggleResults.textContent = 'Show results';
+      } else {
+        resultsCard.style.display = '';
+        toggleResults.textContent = 'Hide results';
+        await loadResults();
+      }
+    });
+
+    refreshBtn.addEventListener('click', loadResults);
+
+    // kick off
+    loadPoll();
+  })();
+  </script>
+</body>
+</html>
