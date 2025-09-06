@@ -31,14 +31,21 @@ type OptionCounts struct {
 
 // Predefined poll options
 var DefinedPollOptions = PollOptions{
-	"optionA": "Punk",
-	"optionB": "Happy Hardcore",
-	"optionC": "Schlager",
+	"optionA": "Pop Punk",
+	"optionB": "Ska Punk",
+	"optionC": "Reggea",
+	"optionD": "Schlager",
+	"optionE": "Ländler",
+	"optionF": "Latin Rap",
+	"optionG": "Glam Rock",
+	"optionH": "Power Metal",
+	"optionI": "Italo Pop",
+	"optionJ": "Country",
 }
 
 var ConcretePoll = Poll{
 	ID:          PollID,
-	Title:       "What music should we play at the party?",
-	Description: "Choose your favorite music genre for the upcoming party.",
+	Title:       "Wella Musigstiil gfallt dir am besta?",
+	Description: "Suech dii Lieblingsmusigstiil uus und gib din Vote ab! Dini Meinig zellt!",
 	Options:     DefinedPollOptions,
 }
