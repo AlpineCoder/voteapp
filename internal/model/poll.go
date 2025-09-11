@@ -46,6 +46,6 @@ var DefinedPollOptions = PollOptions{
 var ConcretePoll = Poll{
 	ID:          PollID,
 	Title:       "Wella Musigstiil gfallt dir am besta?",
-	Description: "Suech dii Lieblingsmusigstiil uus und gib din Vote ab! Dini Meinig zellt!",
+	Description: "Suech dii Lieblingsmusigstiil uus und gib din Stimm ab!",
 	Options:     DefinedPollOptions,
 }
